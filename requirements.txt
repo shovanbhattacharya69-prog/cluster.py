@@ -1,0 +1,3 @@
+PyQt6>=6.6.0
+python-can>=4.3.0
+cantools>=40.0.0

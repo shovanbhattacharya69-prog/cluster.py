@@ -1,0 +1,62 @@
+VERSION "Visteon Software-in-the-Loop Cockpit"
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU Cockpit
+
+BO_ 256 PowertrainTelemetry: 8 ECU
+ SG_ VehicleSpeed : 0|16@1+ (0.1,0) [0|300] "km/h" Cockpit
+ SG_ EngineRPM : 16|16@1+ (1,0) [0|9000] "rpm" Cockpit
+ SG_ CurrentGear : 32|4@1+ (1,0) [0|7] "" Cockpit
+ SG_ TurboBoostBar : 36|12@1+ (0.01,0) [0|3] "bar" Cockpit
+ SG_ ThrottlePosition : 48|8@1+ (0.5,0) [0|100] "%" Cockpit
+
+BO_ 512 VehicleDiagnostics: 8 ECU
+ SG_ CoolantTemperature : 0|8@1+ (1,-40) [-40|215] "degC" Cockpit
+ SG_ EngineOilPressure : 8|10@1+ (0.01,0) [0|10] "bar" Cockpit
+ SG_ FuelTankLevel : 18|7@1+ (1,0) [0|100] "%" Cockpit
+ SG_ ActiveDTCAlert : 25|1@1+ (1,0) [0|1] "" Cockpit
+ SG_ DriveModeSelect : 26|2@1+ (1,0) [0|2] "" Cockpit
+
+VAL_ 512 DriveModeSelect 0 "Eco" 1 "Sport" 2 "Track";
+VAL_ 512 ActiveDTCAlert 0 "Inactive" 1 "Active";
+
+CM_ BO_ 256 "Powertrain telemetry transmitted at 50 Hz.";
+CM_ BO_ 512 "Vehicle diagnostics transmitted at 20 Hz.";
+CM_ SG_ 512 DriveModeSelect "0=Eco, 1=Sport, 2=Track.";
+CM_ SG_ 512 ActiveDTCAlert "Set when simulated coolant temperature exceeds 104 degC (P0117 cockpit alert).";
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 256 20;
+BA_ "GenMsgCycleTime" BO_ 512 50;
