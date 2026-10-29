@@ -1,4 +1,11 @@
-"""Cross-platform CAN bus factory supporting Linux SocketCAN and Windows IPC."""
+"""
+Hardware abstraction layer for virtual CAN networking.
+
+Uses native Linux SocketCAN ('vcan0') when available. On Windows and platforms
+without kernel CAN drivers, it provides a shared-memory ring buffer (ShmCanBus)
+so separate processes (e.g. ECU node + instrument cluster) can exchange raw
+CAN frames without network sockets or third-party drivers.
+"""
 
 from __future__ import annotations
 
@@ -13,18 +20,22 @@ from typing import Optional
 
 import can
 
-LOGGER = logging.getLogger("can_bus")
+log = logging.getLogger("can_bus")
 
-HEADER_FORMAT = "!8sIIQ"  # magic (8s), capacity (I), slot_size (I), write_seq (Q)
-HEADER_SIZE = struct.calcsize(HEADER_FORMAT)  # 24 bytes
-SLOT_FORMAT = "!QIBBHd8s"  # seq (Q), arb_id (I), dlc (B), flags (B), reserved (H), timestamp (d), data (8s)
-SLOT_SIZE = struct.calcsize(SLOT_FORMAT)  # 32 bytes
+# IPC ring buffer layout:
+# Header: magic (8B) | capacity (4B) | slot_size (4B) | write_seq (8B) -> 24B
+# Slot:   seq (8B) | arb_id (4B) | dlc (1B) | flags (1B) | reserved (2B) | timestamp (8B) | data (8B) -> 32B
+HEADER_STRUCT = struct.Struct("!8sIIQ")
+SLOT_STRUCT = struct.Struct("!QIBBHd8s")
+RING_MAGIC = b"VCANRING"
 DEFAULT_CAPACITY = 2048
-MAGIC = b"VCANRING"
 
 
 class ShmCanBus(can.BusABC):
-    """Zero-dependency, cross-process virtual CAN bus using a memory-mapped ring buffer."""
+    """
+    Lightweight multi-process CAN bus implemented over an mmap-backed ring buffer.
+    Allows concurrent SIL processes to produce and consume frames locally.
+    """
 
     def __init__(
         self,
@@ -36,54 +47,53 @@ class ShmCanBus(can.BusABC):
         super().__init__(channel=channel, **kwargs)
         self.capacity = capacity
         self.receive_own_messages = receive_own_messages
-        self.channel_info = f"ShmCanBus(channel={channel})"
+        self.channel_info = f"ShmCanBus:{channel}"
 
-        temp_dir = tempfile.gettempdir()
-        safe_chan = "".join(c if c.isalnum() else "_" for c in str(channel))
-        self.file_path = os.path.join(temp_dir, f"vcan_{safe_chan}.ipc")
+        # Map buffer file into temp directory
+        slug = "".join(c if c.isalnum() else "_" for c in str(channel))
+        self.file_path = os.path.join(tempfile.gettempdir(), f"vcan_{slug}.ipc")
 
-        file_size = HEADER_SIZE + self.capacity * SLOT_SIZE
+        file_size = HEADER_STRUCT.size + self.capacity * SLOT_STRUCT.size
         if not os.path.exists(self.file_path):
             try:
                 with open(self.file_path, "x+b") as f:
-                    f.write(struct.pack(HEADER_FORMAT, MAGIC, self.capacity, SLOT_SIZE, 0))
-                    f.write(b"\x00" * (self.capacity * SLOT_SIZE))
+                    f.write(HEADER_STRUCT.pack(RING_MAGIC, self.capacity, SLOT_STRUCT.size, 0))
+                    f.write(b"\x00" * (self.capacity * SLOT_STRUCT.size))
                     f.flush()
             except FileExistsError:
                 pass
 
-        self._f = open(self.file_path, "r+b")
-        self._mmap = mmap.mmap(self._f.fileno(), file_size)
+        self._file = open(self.file_path, "r+b")
+        self._mmap = mmap.mmap(self._file.fileno(), file_size)
 
-        magic, cap, s_size, current_seq = struct.unpack_from(HEADER_FORMAT, self._mmap, 0)
-        self._read_seq = current_seq
+        _, _, _, head_seq = HEADER_STRUCT.unpack_from(self._mmap, 0)
+        self._read_seq = head_seq
         self._is_open = True
 
     def send(self, msg: can.Message, timeout: Optional[float] = None) -> None:
         if not self._is_open:
-            raise can.CanOperationError("Bus is closed")
+            raise can.CanOperationError("Cannot write to closed CAN interface")
 
-        data_bytes = bytes(msg.data)[:8].ljust(8, b"\x00")
-        dlc = len(msg.data)
+        payload = bytes(msg.data)[:8].ljust(8, b"\x00")
+        dlc = min(len(msg.data), 8)
         flags = (1 if msg.is_extended_id else 0) | ((1 if msg.is_error_frame else 0) << 1)
-        ts = msg.timestamp if msg.timestamp else time.time()
+        ts = msg.timestamp or time.time()
 
-        magic, cap, s_size, write_seq = struct.unpack_from(HEADER_FORMAT, self._mmap, 0)
+        _, _, _, write_seq = HEADER_STRUCT.unpack_from(self._mmap, 0)
         next_seq = write_seq + 1
         slot_idx = next_seq % self.capacity
-        slot_offset = HEADER_SIZE + slot_idx * SLOT_SIZE
+        slot_offset = HEADER_STRUCT.size + slot_idx * SLOT_STRUCT.size
 
-        slot_data = struct.pack(
-            SLOT_FORMAT,
+        slot_bytes = SLOT_STRUCT.pack(
             next_seq,
             msg.arbitration_id,
             dlc,
             flags,
             0,
             ts,
-            data_bytes,
+            payload,
         )
-        self._mmap[slot_offset : slot_offset + SLOT_SIZE] = slot_data
+        self._mmap[slot_offset : slot_offset + SLOT_STRUCT.size] = slot_bytes
         struct.pack_into("!Q", self._mmap, 16, next_seq)
         self._mmap.flush()
 
@@ -91,68 +101,67 @@ class ShmCanBus(can.BusABC):
         self, timeout: Optional[float]
     ) -> tuple[Optional[can.Message], bool]:
         if not self._is_open:
-            raise can.CanOperationError("Bus is closed")
+            raise can.CanOperationError("Cannot read from closed CAN interface")
 
-        start_time = time.monotonic()
+        start = time.monotonic()
         while True:
-            current_write_seq = struct.unpack_from("!Q", self._mmap, 16)[0]
+            write_seq = struct.unpack_from("!Q", self._mmap, 16)[0]
 
-            if current_write_seq > self._read_seq:
-                if current_write_seq - self._read_seq > self.capacity:
-                    self._read_seq = current_write_seq - self.capacity
+            if write_seq > self._read_seq:
+                # Catch up if reader lagged behind buffer wrap-around
+                if write_seq - self._read_seq > self.capacity:
+                    self._read_seq = write_seq - self.capacity
 
-                next_seq = self._read_seq + 1
-                slot_idx = next_seq % self.capacity
-                slot_offset = HEADER_SIZE + slot_idx * SLOT_SIZE
-                slot_bytes = self._mmap[slot_offset : slot_offset + SLOT_SIZE]
-                seq, arb_id, dlc, flags, _, ts, data_bytes = struct.unpack(
-                    SLOT_FORMAT, slot_bytes
-                )
+                target_seq = self._read_seq + 1
+                slot_idx = target_seq % self.capacity
+                slot_offset = HEADER_STRUCT.size + slot_idx * SLOT_STRUCT.size
+                raw = self._mmap[slot_offset : slot_offset + SLOT_STRUCT.size]
+                seq, arb_id, dlc, flags, _, ts, payload = SLOT_STRUCT.unpack(raw)
 
-                if seq == next_seq:
-                    self._read_seq = next_seq
+                if seq == target_seq:
+                    self._read_seq = target_seq
                     msg = can.Message(
                         arbitration_id=arb_id,
-                        data=data_bytes[:dlc],
+                        data=payload[:dlc],
                         is_extended_id=bool(flags & 1),
                         is_error_frame=bool(flags & 2),
                         timestamp=ts,
                         channel=self.channel_info,
                     )
                     return msg, False
-                else:
-                    self._read_seq = current_write_seq
 
-            if timeout is not None:
-                if (time.monotonic() - start_time) >= timeout:
-                    return None, False
-                time.sleep(0.002)
-            else:
-                time.sleep(0.002)
+                self._read_seq = write_seq
+
+            if timeout is not None and (time.monotonic() - start) >= timeout:
+                return None, False
+
+            time.sleep(0.002)
 
     def shutdown(self) -> None:
         if self._is_open:
             self._is_open = False
             try:
                 self._mmap.close()
-                self._f.close()
+                self._file.close()
             except OSError:
                 pass
         super().shutdown()
 
 
 def create_bus(channel: str = "vcan0") -> can.BusABC:
-    """Open virtual CAN interface, using ShmCanBus on Windows or SocketCAN on Linux."""
+    """
+    Open the primary CAN interface for the platform.
+    Uses SocketCAN on Linux when available, otherwise falls back to ShmCanBus.
+    """
     if platform.system() == "Windows":
-        LOGGER.info("Using shared-memory virtual CAN bus channel '%s' on Windows.", channel)
         try:
             return ShmCanBus(channel=channel)
         except Exception as exc:
-            LOGGER.warning("Could not open ShmCanBus (%s), falling back to in-memory virtual bus.", exc)
+            log.warning("Shared-memory bus failed (%s), falling back to in-memory virtual bus", exc)
             return can.Bus(interface="virtual", channel=channel)
 
     try:
         return can.Bus(interface="socketcan", channel=channel)
     except (can.CanError, OSError, ValueError):
-        LOGGER.info("SocketCAN unavailable, falling back to ShmCanBus '%s'.", channel)
+        log.info("SocketCAN unavailable on %s; using shared-memory backend", channel)
         return ShmCanBus(channel=channel)
