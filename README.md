@@ -136,11 +136,14 @@ pytest test_cluster.py -v
 ## File Structure
 
 ```
-├── automotive_network.dbc   # CAN database definition (telemetry & diagnostic frames)
+├── .github/workflows/ci.yml # Automated multi-platform CI/CD test pipeline
+├── .vscode/settings.json    # IDE automotive syntax & interpreter configuration
+├── automotive_network.dbc   # Vector CAN database (telemetry & diagnostic frames)
 ├── can_bus.py               # Hardware abstraction layer (SocketCAN & Windows mmap IPC)
-├── cockpit_display.py       # PyQt6 cluster GUI and CAN receiver thread
+├── cockpit_display.py       # PyQt6 cluster GUI and asynchronous CAN receiver thread
 ├── ecu_core.py              # Powertrain & vehicle dynamics simulation node
 ├── run.py                   # Subsystem entrypoint launcher
+├── scripts/setup_vcan.sh    # Linux SocketCAN (vcan0) initialization script
 ├── test_cluster.py          # Integration and unit test suite
 ├── requirements.txt         # Project package requirements
 └── README.md                # Project documentation

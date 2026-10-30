@@ -420,6 +420,17 @@ class CockpitWindow(QMainWindow):
         self.cockpit.set_bus_status("CAN ERROR")
         log.error("CAN listener halted: %s", message)
 
+    def keyPressEvent(self, event: Any) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+        elif event.key() == Qt.Key.Key_F11:
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.showFullScreen()
+        else:
+            super().keyPressEvent(event)
+
     def closeEvent(self, event: Any) -> None:
         if self.sim_thread is not None:
             self.sim_thread.stop()

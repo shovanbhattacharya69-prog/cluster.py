@@ -18,7 +18,8 @@ ENV/
 htmlcov/
 
 # IDE / Editor artifacts
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

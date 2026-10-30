@@ -1,0 +1,23 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "cSpell.words": [
+        "vcan",
+        "socketcan",
+        "cantools",
+        "SGTYPE",
+        "VALTYPE",
+        "SIGTYPE",
+        "SmartCore",
+        "Visteon",
+        "powertrain",
+        "pyqtSignal"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnknownMemberType": "none",
+        "reportUnknownVariableType": "none",
+        "reportUnknownArgumentType": "none"
+    }
+}
