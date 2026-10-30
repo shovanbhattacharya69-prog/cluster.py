@@ -1,17 +1,22 @@
 # Automotive CAN Digital Instrument Cluster & SIL Simulation
 
-A Software-in-the-Loop (SIL) automotive instrument cluster built with PyQt6 and a powertrain ECU simulation node communicating over a virtual CAN network defined by Vector DBC.
+[![CI / Automotive SIL Test Pipeline](https://github.com/shovanbhattacharya69-prog/cluster.py/actions/workflows/ci.yml/badge.svg)](https://github.com/shovanbhattacharya69-prog/cluster.py/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white)
+![PyQt6](https://img.shields.io/badge/GUI-PyQt6%2060FPS-41CD52?logo=qt&logoColor=white)
+![CAN Protocol](https://img.shields.io/badge/CAN-Vector%20DBC%20%2F%20SocketCAN-FF6F00)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+A production-ready Software-in-the-Loop (SIL) automotive cockpit platform targeted for Tier-1 digital instrument clusters (e.g., Visteon SmartCore). Built with high-performance antialiased PyQt6 graphics and a physics-based powertrain ECU plant model communicating over a standardized Controller Area Network (CAN) interface.
 
 ---
 
-## Overview
+## Architecture & System Overview
 
-The project simulates an automotive in-vehicle network consisting of two primary ECUs:
+The project simulates an automotive in-vehicle Electronic Control Unit (ECU) network topology:
 
-1. **Powertrain & Diagnostics ECU (`ecu_core.py`)**: A physics-based plant model simulating vehicle speed, 6-speed transmission gearing, throttle demand, turbocharger spool dynamics, engine thermals, and oil pressure.
-2. **Digital Instrument Cluster (`cockpit_display.py`)**: An antialiased PyQt6 dashboard rendering dual analog-style sweep gauges, progressive shift indicator LEDs, boost pressure gauge, fluid monitoring, and active DTC fault warnings.
-
-Communication follows standard automotive CAN conventions specified in [`automotive_network.dbc`](automotive_network.dbc).
+1. **Powertrain & Diagnostics ECU (`ecu_core.py`)**: A continuous-time physics simulation node modeling aerodynamic resistance, engine torque curves, automatic 6-speed transmission shifting, turbocharger spool lag, thermal dissipation, and diagnostic trouble code (DTC) alert conditions.
+2. **Digital Instrument Cluster (`cockpit_display.py`)**: A native 60 FPS desktop cluster displaying dual analog-style sweep gauges, progressive 12-segment shift lights, turbo boost meter, vital fluid diagnostics, and active DTC fault banners.
+3. **Hardware Abstraction Layer (`can_bus.py`)**: Seamless transport layer utilizing Linux kernel SocketCAN (`vcan0`) and high-throughput POSIX/Windows shared-memory ring buffers (`ShmCanBus`) for driverless multi-process simulation on macOS and Windows.
 
 ```
    +-------------------------+              +-------------------------+
@@ -25,17 +30,19 @@ Communication follows standard automotive CAN conventions specified in [`automot
                                     |
                     CAN Bus Transport (can_bus.py)
                     - Linux: Native SocketCAN (vcan0)
-                    - Windows: Shared-Memory IPC (ShmCanBus)
+                    - Windows/macOS: Shared-Memory IPC Ring
 ```
 
 ---
 
-## Network Specification (DBC)
+## Network Specification (Vector DBC)
 
-| Message | Arbitration ID | Cycle Time | Signals |
-| :--- | :--- | :--- | :--- |
-| **PowertrainTelemetry** | `0x100` (256) | 20 ms (50 Hz) | `VehicleSpeed` (0–300 km/h)<br>`EngineRPM` (0–9000 rpm)<br>`CurrentGear` (1–6)<br>`TurboBoostBar` (0–3.0 bar)<br>`ThrottlePosition` (0–100%) |
-| **VehicleDiagnostics** | `0x200` (512) | 50 ms (20 Hz) | `CoolantTemperature` (-40–215 °C)<br>`EngineOilPressure` (0–10.0 bar)<br>`FuelTankLevel` (0–100%)<br>`ActiveDTCAlert` (0=Inactive, 1=Active)<br>`DriveModeSelect` (0=Eco, 1=Sport, 2=Track) |
+Frames and signals are strictly serialized and deserialized using [`automotive_network.dbc`](automotive_network.dbc):
+
+| Message Name | Arbitration ID | Cycle Time | Length | Signals & Calibration Range |
+| :--- | :--- | :--- | :--- | :--- |
+| **`PowertrainTelemetry`** | `0x100` (256) | 20 ms (50 Hz) | 8 Bytes | • `VehicleSpeed`: 0–300 km/h (0.1 scale)<br>• `EngineRPM`: 0–9000 rpm (1 scale)<br>• `CurrentGear`: 1–6 (1 scale)<br>• `TurboBoostBar`: 0–3.00 bar (0.01 scale)<br>• `ThrottlePosition`: 0–100% (0.5 scale) |
+| **`VehicleDiagnostics`** | `0x200` (512) | 50 ms (20 Hz) | 50 ms (20 Hz) | • `CoolantTemperature`: -40–215 °C (1 scale, -40 offset)<br>• `EngineOilPressure`: 0–10.0 bar (0.01 scale)<br>• `FuelTankLevel`: 0–100% (1 scale)<br>• `ActiveDTCAlert`: 0=Inactive, 1=Active<br>• `DriveModeSelect`: 0=Eco, 1=Sport, 2=Track |
 
 ---
 
@@ -43,18 +50,15 @@ Communication follows standard automotive CAN conventions specified in [`automot
 
 ### Prerequisites
 
-- Python 3.10+
-- Dependencies listed in `requirements.txt`:
-  - `PyQt6`
-  - `python-can`
-  - `cantools`
+- Python 3.10, 3.11, or 3.12
+- Standard C runtime and graphical display driver (or offscreen driver for headless servers)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/shovan/cluster.git
-cd cluster
+git clone https://github.com/shovanbhattacharya69-prog/cluster.py.git
+cd cluster.py
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -71,80 +75,101 @@ pip install -r requirements.txt
 
 ---
 
-## Usage
+## Operating Modes
 
-### 1. Unified Launcher (Single Command)
+### 1. Unified Cockpit Launcher (Recommended)
 
-Runs the instrument cluster with the ECU plant simulation executing in a background worker thread:
+Runs the instrument cluster UI with the ECU plant simulation executing asynchronously in a dedicated worker thread:
 
 ```bash
-python run.py
+python run.py --drive-mode Sport
 ```
 
-Optional arguments:
+**Options:**
+- `--drive-mode {Eco,Sport,Track}`: Set dynamic calibration profile.
+- `--fullscreen`: Launch in immersive fullscreen display mode (Toggle anytime with `F11`; exit with `Esc`).
+
+### 2. Multi-Process Software-in-the-Loop (SIL)
+
+Simulates separate physical hardware ECUs communicating over the virtual CAN bus in isolated processes:
+
+**Terminal 1 — Powertrain Simulation Node:**
 ```bash
-# Select a drive mode profile (Eco, Sport, Track)
-python run.py --drive-mode Track
-
-# Launch in fullscreen mode
-python run.py --fullscreen
+python ecu_core.py --drive-mode Track
 ```
 
-### 2. Multi-Process SIL Execution (Realistic Dual-Node Test)
-
-To simulate separate hardware ECUs communicating over the network, run the ECU node and display in separate terminal windows:
-
-**Terminal 1 — Powertrain ECU:**
-```bash
-python ecu_core.py --drive-mode Sport
-```
-
-**Terminal 2 — Instrument Cluster Display:**
+**Terminal 2 — Digital Instrument Cluster:**
 ```bash
 python cockpit_display.py
 ```
 
-The cluster automatically discovers the active CAN channel, switches status to `CAN ONLINE`, and streams incoming telemetry at 50 FPS.
+The cluster automatically establishes bus arbitration, indicators turn to `CAN ONLINE`, and streams incoming telemetry at 50 FPS.
 
 ---
 
-## Drive Modes
+## Driving Profiles
 
-The simulation calibrates vehicle dynamics and instrument cluster accent styling based on the selected mode:
+The vehicle plant dynamics and cockpit styling adapt dynamically across driving modes:
 
-- **Eco** (Green `#39d98a`): Shift threshold at 6,100 RPM, conservative throttle response, optimal fuel economy.
-- **Sport** (Amber `#ffb547`): Shift threshold at 6,900 RPM, linear throttle mapping, standard boost curve.
-- **Track** (Red `#ff4d5a`): Shift threshold at 7,600 RPM, aggressive throttle multiplier, high-RPM shift-light flashing above 7,800 RPM.
+| Drive Mode | Accent Color | Shift Point | Throttle Response | Characteristics |
+| :--- | :--- | :--- | :--- | :--- |
+| **Eco** | Emerald (`#39d98a`) | 6,100 RPM | 0.90x Linear | Smooth acceleration, optimal fuel economy, mild thermals. |
+| **Sport** | Amber (`#ffb547`) | 6,900 RPM | 1.00x Linear | Balanced power delivery, responsive boost spooling. |
+| **Track** | Crimson (`#ff4d5a`) | 7,600 RPM | 1.20x Aggressive | High boost, rapid gear shifts, flashing shift lights (>7800 RPM). |
 
 ---
 
-## Running Tests
+## Diagnostic Trouble Code (DTC) Injection
 
-The test suite validates DBC encoding/decoding, physics models, shared-memory CAN serialization, and offscreen widget rendering:
+When engine coolant temperature surpasses **104 °C** under heavy engine load:
+1. `ecu_core.py` sets `ActiveDTCAlert = 1`.
+2. The instrument cluster intercepts the diagnostic frame and renders an illuminated warning banner:
+   ```
+   ⚠ DTC: P0117 (COOLANT OVERHEAT)
+   ```
+3. Returning engine load to cruise cools the block and automatically clears the DTC indicator.
+
+---
+
+## Verification & Testing
+
+The comprehensive test suite verifies DBC encoding roundtrips, vehicle physics boundary limits, shared-memory IPC buffer reliability, and headless offscreen GUI rendering:
 
 ```bash
-python test_cluster.py
+python -m unittest test_cluster.py
 ```
 
-Compatible with `pytest`:
+Or using `pytest`:
 ```bash
-pytest test_cluster.py -v
+pytest -v test_cluster.py
 ```
 
 ---
 
-## File Structure
+## Repository Structure
 
 ```
-├── .github/workflows/ci.yml # Automated multi-platform CI/CD test pipeline
-├── .vscode/settings.json    # IDE automotive syntax & interpreter configuration
-├── automotive_network.dbc   # Vector CAN database (telemetry & diagnostic frames)
+├── .github/workflows/
+│   ├── ci.yml               # Multi-OS CI/CD pipeline (Ubuntu & Windows across Python 3.10-3.12)
+│   └── jekyll-gh-pages.yml  # GitHub Pages static site deployment
+├── .vscode/
+│   └── settings.json        # Workspace configuration & automotive CAN spellcheck rules
+├── scripts/
+│   └── setup_vcan.sh        # Linux SocketCAN interface setup script
+├── automotive_network.dbc   # Vector CANdb++ network definition
 ├── can_bus.py               # Hardware abstraction layer (SocketCAN & Windows mmap IPC)
 ├── cockpit_display.py       # PyQt6 cluster GUI and asynchronous CAN receiver thread
 ├── ecu_core.py              # Powertrain & vehicle dynamics simulation node
 ├── run.py                   # Subsystem entrypoint launcher
-├── scripts/setup_vcan.sh    # Linux SocketCAN (vcan0) initialization script
 ├── test_cluster.py          # Integration and unit test suite
-├── requirements.txt         # Project package requirements
+├── pyproject.toml           # PEP 517/518 build specification
+├── requirements.txt         # Package dependency specifications
+├── LICENSE                  # MIT License
 └── README.md                # Project documentation
 ```
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
