@@ -1,73 +1,1096 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Premium Frontend Demo</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom gradient background */
-        .bg-gradient-primary {
-            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Visteon Automotive Cockpit – CAN Telemetry & Digital Cluster Demo</title>
+  <meta name="description" content="Production-grade digital instrument cluster and CAN bus powertrain telemetry simulator based on automotive_network.dbc." />
+  <!-- Google Fonts: Orbitron & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Orbitron', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cluster: {
+              bg: '#05070a',
+              card: '#0a0e14',
+              border: '#161e2b',
+              accentEco: '#39d98a',
+              accentSport: '#ffb547',
+              accentTrack: '#ff4d5a',
+              gaugeRing: '#131b26',
+              textMuted: '#68788d'
+            }
+          }
         }
-    </style>
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #05070a;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+    .carbon-pattern {
+      background-color: #05070a;
+      background-image: 
+        radial-gradient(circle at 50% 30%, rgba(26, 41, 64, 0.35) 0%, transparent 70%),
+        linear-gradient(45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.015) 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%), 
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.015) 75%);
+      background-size: 100% 100%, 8px 8px, 8px 8px, 8px 8px, 8px 8px;
+    }
+    .glow-eco {
+      box-shadow: 0 0 25px rgba(57, 217, 138, 0.35);
+    }
+    .glow-sport {
+      box-shadow: 0 0 25px rgba(255, 181, 71, 0.35);
+    }
+    .glow-track {
+      box-shadow: 0 0 30px rgba(255, 77, 90, 0.45);
+    }
+    .gauge-needle {
+      transform-origin: 150px 150px;
+      transition: transform 0.06s ease-out;
+    }
+    .redline-blink {
+      animation: redlinePulse 0.12s infinite alternate;
+    }
+    @keyframes redlinePulse {
+      0% { opacity: 0.3; }
+      100% { opacity: 1; filter: drop-shadow(0 0 12px #ff2233); }
+    }
+    .telltale-active {
+      filter: drop-shadow(0 0 6px currentColor);
+      opacity: 1 !important;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #090d13;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
 </head>
-<body class="font-sans antialiased text-gray-800">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="#" class="text-xl font-bold text-gray-900">MyProject</a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <a href="#features" class="text-gray-600 hover:text-gray-900">Features</a>
-                    <a href="#about" class="text-gray-600 hover:text-gray-900">About</a>
-                    <a href="#contact" class="text-gray-600 hover:text-gray-900">Contact</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+<body class="carbon-pattern min-h-screen flex flex-col font-sans select-none">
 
-    <!-- Hero Section -->
-    <section class="bg-gradient-primary text-white py-20">
-        <div class="max-w-4xl mx-auto text-center">
-            <h1 class="text-5xl md:text-6xl font-extrabold mb-6">Your Premium Frontend</h1>
-            <p class="text-lg md:text-xl mb-8">Showcase a modern, responsive UI built with Tailwind CSS – ready to be served via GitHub Pages.</p>
-            <a href="#" class="inline-block bg-white text-primary-600 font-medium rounded-full px-8 py-3 hover:bg-gray-100 transition">Get Started</a>
+  <!-- TOP STATUS BAR -->
+  <header class="border-b border-cluster-border/80 bg-cluster-card/80 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-8 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 p-0.5 shadow-md flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
         </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-display tracking-wider font-bold text-white text-sm lg:text-base">VISTEON / SIL COCKPIT</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-medium">CAN 2.0B ACTIVE</span>
+          </div>
+          <p class="text-[11px] text-cluster-textMuted font-mono">DBC: automotive_network.dbc (0x100 & 0x200)</p>
+        </div>
+      </div>
+
+      <!-- Quick actions and indicators -->
+      <div class="flex items-center gap-2 lg:gap-4">
+        <!-- Audio button -->
+        <button id="btnAudioToggle" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cluster-border bg-cluster-card hover:bg-slate-800 transition text-xs font-mono text-slate-300">
+          <span id="audioIcon">🔇</span>
+          <span id="audioLabel">Sound: OFF</span>
+        </button>
+
+        <!-- Speed Unit Toggle -->
+        <button id="btnUnitToggle" class="px-2.5 py-1.5 rounded-lg border border-cluster-border bg-cluster-card hover:bg-slate-800 transition text-xs font-mono font-semibold text-slate-300">
+          UNIT: <span id="unitLabel" class="text-cyan-400">KM/H</span>
+        </button>
+
+        <!-- Auto Simulation Mode Toggle -->
+        <button id="btnAutoDrive" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition text-xs font-mono font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>AUTOPILOT: <span id="autoDriveStatus">ON</span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN COCKPIT DISPLAY -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 lg:p-6 flex flex-col gap-6">
+
+    <!-- CLUSTER DASHBOARD CONTAINER -->
+    <div id="clusterContainer" class="relative rounded-2xl border-2 border-cluster-border bg-[#070a0f] p-4 lg:p-8 shadow-2xl transition-all duration-300 overflow-hidden">
+      
+      <!-- Top Shift Lights LED Bar -->
+      <div class="flex flex-col items-center justify-center mb-4">
+        <div class="text-[10px] font-mono tracking-widest text-slate-500 uppercase mb-1">SEQUENTIAL SHIFT LIGHT INDICATOR</div>
+        <div id="shiftLightsBar" class="flex items-center gap-1.5 sm:gap-2.5 p-1.5 rounded-xl bg-black/60 border border-slate-800/80 shadow-inner">
+          <!-- 12 LEDs generated by JS -->
+        </div>
+      </div>
+
+      <!-- Turn Signal and Telltale Bar -->
+      <div class="flex items-center justify-between px-2 sm:px-8 mb-4">
+        <!-- Left Blinker -->
+        <button id="btnLeftBlinker" title="Toggle Left Turn Signal (Key: A)" class="p-2 rounded-lg bg-black/40 border border-slate-800/60 hover:bg-slate-800/50 transition flex items-center justify-center text-slate-700">
+          <svg id="iconLeftBlinker" class="w-6 h-6 transition-all duration-75" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M14 6l-6 6 6 6V6z"/>
+          </svg>
+        </button>
+
+        <!-- Warning Icons Bar -->
+        <div class="flex items-center gap-3 sm:gap-6 px-4 py-1.5 rounded-xl bg-black/50 border border-slate-800/50 text-slate-700">
+          <!-- Check Engine (MIL) -->
+          <div id="ttEngine" title="Check Engine / MIL Fault" class="transition-all duration-150 flex items-center justify-center text-slate-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 6V3H4v3H2v12h3v3h4v-3h6v3h4v-3h3V6h-2V3h-3v3H7zm11 10H6V8h12v8z"/>
+            </svg>
+          </div>
+          <!-- Oil Warning -->
+          <div id="ttOil" title="Low Engine Oil Pressure" class="transition-all duration-150 flex items-center justify-center text-slate-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.5 7.5L16 5V3h-2v2l-2.5 2.5C9.8 9.2 8.5 11 8.5 13c0 3.3 2.7 6 6 6s6-2.7 6-6c0-2-1.3-3.8-3-5.5zM3 13c0-1.7 1.3-3 3-3h1v6H6c-1.7 0-3-1.3-3-3z"/>
+            </svg>
+          </div>
+          <!-- Battery -->
+          <div id="ttBattery" title="12V / High Voltage Battery Alert" class="transition-all duration-150 flex items-center justify-center text-slate-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4h-2V2h-4v2H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 9h-2v2h-2v-2H9v-2h2V9h2v2h2v2z"/>
+            </svg>
+          </div>
+          <!-- ABS -->
+          <div id="ttABS" title="Anti-lock Braking System Active" class="font-display font-black text-xs px-1 rounded transition-all duration-150">ABS</div>
+          <!-- Traction Control ESC -->
+          <div id="ttESC" title="Electronic Stability Control" class="transition-all duration-150 flex items-center justify-center text-slate-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.08 3.11H5.77L6.85 7zM19 17H5v-4.66l.12-.34h13.77l.11.34V17z"/>
+            </svg>
+          </div>
+          <!-- High Beam -->
+          <div id="ttHighBeam" title="High Beam" class="transition-all duration-150 flex items-center justify-center text-slate-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Right Blinker -->
+        <button id="btnRightBlinker" title="Toggle Right Turn Signal (Key: D)" class="p-2 rounded-lg bg-black/40 border border-slate-800/60 hover:bg-slate-800/50 transition flex items-center justify-center text-slate-700">
+          <svg id="iconRightBlinker" class="w-6 h-6 transition-all duration-75" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M10 6l6 6-6 6V6z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- MAIN INSTRUMENT GAUGES GRID -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 items-center gap-6">
+
+        <!-- LEFT GAUGE: SPEEDOMETER (Cols 1-4) -->
+        <div class="lg:col-span-4 flex flex-col items-center justify-center relative">
+          <div class="relative w-64 h-64 sm:w-72 sm:h-72">
+            <svg viewBox="0 0 300 300" class="w-full h-full transform">
+              <!-- Background Outer Ring -->
+              <circle cx="150" cy="150" r="120" fill="none" stroke="#0e141d" stroke-width="14" stroke-dasharray="565.48" stroke-dashoffset="141.37" stroke-linecap="round" transform="rotate(135 150 150)"/>
+              
+              <!-- Colored Progress Arc -->
+              <circle id="speedArc" cx="150" cy="150" r="120" fill="none" stroke="#39d98a" stroke-width="14" stroke-dasharray="565.48" stroke-dashoffset="565.48" stroke-linecap="round" transform="rotate(135 150 150)" class="transition-all duration-75"/>
+
+              <!-- Ticks & Scale Markings -->
+              <g id="speedTicks" class="text-slate-500 font-mono text-[9px]">
+                <!-- Scale marks placed by JS -->
+              </g>
+
+              <!-- Needle -->
+              <g id="speedNeedle" class="gauge-needle">
+                <line x1="150" y1="150" x2="150" y2="46" stroke="#f8fafc" stroke-width="3" stroke-linecap="round" filter="drop-shadow(0 0 4px rgba(255,255,255,0.7))"/>
+                <circle cx="150" cy="150" r="12" fill="#090d14" stroke="#475569" stroke-width="3"/>
+                <circle id="speedNeedleHub" cx="150" cy="150" r="6" fill="#39d98a"/>
+              </g>
+            </svg>
+
+            <!-- Center Digital Readout -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-12">
+              <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase font-semibold">VEHICLE SPEED</span>
+              <span id="speedValueDisplay" class="font-display font-extrabold text-5xl sm:text-6xl text-white tracking-tight my-0.5">0</span>
+              <span id="speedUnitDisplay" class="text-xs font-mono font-bold text-slate-400">KM/H</span>
+            </div>
+          </div>
+          <!-- Odometer -->
+          <div class="mt-1 px-3 py-1 rounded bg-black/60 border border-slate-800 text-[11px] font-mono text-slate-400 flex items-center gap-2">
+            <span class="text-slate-600">ODO:</span>
+            <span id="odometerDisplay" class="text-slate-200 font-semibold">014,820.4 km</span>
+          </div>
+        </div>
+
+        <!-- CENTER CLUSTER: GEAR, DRIVE MODE, BOOST, DTC (Cols 5-8) -->
+        <div class="lg:col-span-4 flex flex-col items-center justify-center gap-4 py-2">
+          
+          <!-- Drive Mode Badge Switcher -->
+          <div class="flex items-center gap-1 p-1 bg-black/70 rounded-xl border border-slate-800">
+            <button onclick="setDriveMode('Eco')" id="modeBtnEco" class="px-3.5 py-1 rounded-lg text-xs font-display font-bold transition-all bg-emerald-500 text-black shadow-md">ECO</button>
+            <button onclick="setDriveMode('Sport')" id="modeBtnSport" class="px-3.5 py-1 rounded-lg text-xs font-display font-bold transition-all text-slate-400 hover:text-white">SPORT</button>
+            <button onclick="setDriveMode('Track')" id="modeBtnTrack" class="px-3.5 py-1 rounded-lg text-xs font-display font-bold transition-all text-slate-400 hover:text-white">TRACK</button>
+          </div>
+
+          <!-- Central Prominent Gear Display Box -->
+          <div id="gearBoxContainer" class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-b from-slate-900/90 to-black/90 border-2 border-slate-700/60 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden transition-all duration-200">
+            <div class="absolute top-2 text-[10px] font-mono tracking-widest text-slate-500 font-bold uppercase">GEAR</div>
+            <span id="gearDisplay" class="font-display font-black text-6xl text-emerald-400 mt-2 transition-transform duration-100">1</span>
+            <div class="absolute bottom-1.5 flex gap-1">
+              <span class="text-[9px] font-mono text-slate-600">6-SPEED</span>
+            </div>
+          </div>
+
+          <!-- Turbo Boost Bar -->
+          <div class="w-full max-w-xs px-4 py-3 rounded-xl bg-black/50 border border-slate-800/80">
+            <div class="flex justify-between items-center text-xs font-mono mb-1.5">
+              <span class="text-slate-400 font-semibold tracking-wider flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> TURBO BOOST
+              </span>
+              <span id="boostValueDisplay" class="font-display font-bold text-cyan-400 text-sm">0.00 bar</span>
+            </div>
+            <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800 relative">
+              <div id="boostBarFill" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 rounded-full transition-all duration-75 w-0"></div>
+            </div>
+            <div class="flex justify-between text-[9px] font-mono text-slate-500 mt-1">
+              <span>0.0</span>
+              <span>1.0</span>
+              <span>2.0</span>
+              <span>3.0 BAR</span>
+            </div>
+          </div>
+
+          <!-- Active DTC Fault Alert Banner -->
+          <div id="dtcAlertBanner" class="hidden w-full max-w-sm px-4 py-2 rounded-xl bg-rose-950/80 border-2 border-rose-500/80 text-rose-200 text-xs font-mono flex items-center gap-2.5 animate-pulse shadow-lg shadow-rose-950/50">
+            <svg class="w-5 h-5 text-rose-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div class="leading-tight">
+              <div class="font-bold text-rose-300">ACTIVE DTC ALERT</div>
+              <div id="dtcDescription" class="text-[11px] text-rose-100">P0117: Coolant Temperature > 104°C</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT GAUGE: TACHOMETER (Cols 9-12) -->
+        <div class="lg:col-span-4 flex flex-col items-center justify-center relative">
+          <div class="relative w-64 h-64 sm:w-72 sm:h-72">
+            <svg viewBox="0 0 300 300" class="w-full h-full transform">
+              <!-- Background Outer Ring -->
+              <circle cx="150" cy="150" r="120" fill="none" stroke="#0e141d" stroke-width="14" stroke-dasharray="565.48" stroke-dashoffset="141.37" stroke-linecap="round" transform="rotate(135 150 150)"/>
+              
+              <!-- Redline Section Arc (7500 - 9000 RPM) -->
+              <circle cx="150" cy="150" r="120" fill="none" stroke="#4a151b" stroke-width="14" stroke-dasharray="565.48" stroke-dashoffset="490" stroke-linecap="round" transform="rotate(300 150 150)"/>
+
+              <!-- Colored Progress Arc -->
+              <circle id="rpmArc" cx="150" cy="150" r="120" fill="none" stroke="#39d98a" stroke-width="14" stroke-dasharray="565.48" stroke-dashoffset="565.48" stroke-linecap="round" transform="rotate(135 150 150)" class="transition-all duration-75"/>
+
+              <!-- Ticks & Scale Markings -->
+              <g id="rpmTicks" class="text-slate-500 font-mono text-[9px]">
+                <!-- Scale marks placed by JS -->
+              </g>
+
+              <!-- Needle -->
+              <g id="rpmNeedle" class="gauge-needle">
+                <line x1="150" y1="150" x2="150" y2="46" stroke="#f8fafc" stroke-width="3" stroke-linecap="round" filter="drop-shadow(0 0 4px rgba(255,255,255,0.7))"/>
+                <circle cx="150" cy="150" r="12" fill="#090d14" stroke="#475569" stroke-width="3"/>
+                <circle id="rpmNeedleHub" cx="150" cy="150" r="6" fill="#39d98a"/>
+              </g>
+            </svg>
+
+            <!-- Center Digital Readout -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-12">
+              <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase font-semibold">ENGINE SPEED</span>
+              <span id="rpmValueDisplay" class="font-display font-extrabold text-5xl sm:text-6xl text-white tracking-tight my-0.5">800</span>
+              <span class="text-xs font-mono font-bold text-slate-400">RPM × 1000</span>
+            </div>
+          </div>
+          <!-- Throttle Position Display -->
+          <div class="mt-1 px-3 py-1 rounded bg-black/60 border border-slate-800 text-[11px] font-mono text-slate-400 flex items-center gap-2">
+            <span class="text-slate-600">THROTTLE:</span>
+            <span id="throttleDisplay" class="text-slate-200 font-semibold">24.5%</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTTOM FLUID TELEMETRY BAR -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
+        <!-- Coolant Temp -->
+        <div class="p-2.5 rounded-xl bg-black/40 border border-slate-800/60">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">COOLANT TEMP</div>
+          <div class="flex items-center justify-center gap-1 mt-0.5">
+            <span id="coolantValueDisplay" class="font-display font-bold text-lg text-slate-200">88</span>
+            <span class="text-xs text-slate-500">°C</span>
+          </div>
+          <div class="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div id="coolantBar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 55%"></div>
+          </div>
+        </div>
+
+        <!-- Oil Pressure -->
+        <div class="p-2.5 rounded-xl bg-black/40 border border-slate-800/60">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">OIL PRESSURE</div>
+          <div class="flex items-center justify-center gap-1 mt-0.5">
+            <span id="oilValueDisplay" class="font-display font-bold text-lg text-slate-200">4.8</span>
+            <span class="text-xs text-slate-500">bar</span>
+          </div>
+          <div class="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div id="oilBar" class="h-full bg-cyan-500 transition-all duration-300" style="width: 48%"></div>
+          </div>
+        </div>
+
+        <!-- Fuel Tank -->
+        <div class="p-2.5 rounded-xl bg-black/40 border border-slate-800/60">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">FUEL LEVEL</div>
+          <div class="flex items-center justify-center gap-1 mt-0.5">
+            <span id="fuelValueDisplay" class="font-display font-bold text-lg text-slate-200">84</span>
+            <span class="text-xs text-slate-500">%</span>
+          </div>
+          <div class="w-full bg-slate-900 h-1.5 rounded-full mt-1.5 overflow-hidden">
+            <div id="fuelBar" class="h-full bg-amber-500 transition-all duration-300" style="width: 84%"></div>
+          </div>
+        </div>
+
+        <!-- CAN Bus Telemetry Rate -->
+        <div class="p-2.5 rounded-xl bg-black/40 border border-slate-800/60">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">CAN BUS RATE</div>
+          <div class="flex items-center justify-center gap-1 mt-0.5">
+            <span id="canFpsDisplay" class="font-display font-bold text-lg text-emerald-400">50.0</span>
+            <span class="text-xs text-slate-500">fps</span>
+          </div>
+          <div class="text-[10px] text-slate-600 mt-1">50 Hz / 20 Hz periodic</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- INTERACTIVE VEHICLE CONTROLS & TEST BENCH -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT: DRIVER CONTROLS (Cols 1-7) -->
+      <div class="lg:col-span-7 rounded-2xl border border-cluster-border bg-cluster-card p-5 shadow-lg flex flex-col gap-5">
+        <div class="flex items-center justify-between border-b border-cluster-border pb-3">
+          <div class="flex items-center gap-2">
+            <span class="p-1 rounded bg-indigo-500/10 text-indigo-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </span>
+            <h2 class="font-display font-bold text-sm tracking-wider text-white">INTERACTIVE POWERTRAIN CONTROLS</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-400">Keys: [Space] Gas, [B] Brake, [E]/[Q] Gears</span>
+        </div>
+
+        <!-- Throttle Slider & WOT Button -->
+        <div>
+          <div class="flex justify-between items-center text-xs font-mono mb-2">
+            <label for="throttleSlider" class="text-slate-300 font-semibold">THROTTLE PEDAL INPUT</label>
+            <span id="sliderThrottleLabel" class="text-cyan-400 font-bold text-sm">30%</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="range" id="throttleSlider" min="0" max="100" value="30" class="flex-1 h-3 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+            <button id="btnWOT" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-display font-bold text-xs tracking-wider transition shadow-md active:scale-95">
+              WOT (100%)
+            </button>
+            <button id="btnBrake" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-display font-bold text-xs tracking-wider transition border border-slate-700 active:scale-95">
+              BRAKE
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Gear Paddle Shifters -->
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btnDownshift" class="py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800/80 text-slate-300 font-mono text-xs flex items-center justify-center gap-2 transition active:scale-95">
+            <span class="font-display font-bold text-base">«</span> DOWNSHIFT [Q]
+          </button>
+          <button id="btnUpshift" class="py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800/80 text-slate-300 font-mono text-xs flex items-center justify-center gap-2 transition active:scale-95">
+            UPSHIFT [E] <span class="font-display font-bold text-base">»</span>
+          </button>
+        </div>
+
+        <!-- Fault Injection Matrix -->
+        <div class="pt-2 border-t border-cluster-border">
+          <div class="text-xs font-mono text-slate-400 mb-2.5 flex items-center gap-1.5 font-semibold">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span> DTC FAULT INJECTION (DIAGNOSTICS 0x200)
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button onclick="injectFault('overheat')" class="px-2.5 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/60 text-rose-300 text-[11px] font-mono transition text-left">
+              🔥 Overheat (108°C)
+            </button>
+            <button onclick="injectFault('oil')" class="px-2.5 py-1.5 rounded-lg bg-amber-950/40 hover:bg-amber-900/50 border border-amber-800/60 text-amber-300 text-[11px] font-mono transition text-left">
+              ⚠️ Low Oil (0.4 bar)
+            </button>
+            <button onclick="injectFault('boost')" class="px-2.5 py-1.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-800/60 text-indigo-300 text-[11px] font-mono transition text-left">
+              🌀 Underboost
+            </button>
+            <button onclick="injectFault('clear')" class="px-2.5 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-800/60 text-emerald-300 text-[11px] font-mono transition text-center font-bold">
+              ✓ Clear DTCs
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: LIVE CAN BUS PACKET SNIFFER (Cols 8-12) -->
+      <div class="lg:col-span-5 rounded-2xl border border-cluster-border bg-cluster-card p-5 shadow-lg flex flex-col gap-3">
+        <div class="flex items-center justify-between border-b border-cluster-border pb-3">
+          <div class="flex items-center gap-2">
+            <span class="p-1 rounded bg-cyan-500/10 text-cyan-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </span>
+            <h2 class="font-display font-bold text-sm tracking-wider text-white">LIVE CAN 2.0B FRAME STREAM</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnPauseCan" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Pause</button>
+            <button id="btnClearCan" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Clear</button>
+          </div>
+        </div>
+
+        <!-- Frame Table -->
+        <div class="flex-1 h-56 overflow-y-auto custom-scroll font-mono text-[11px] bg-black/60 rounded-xl p-2 border border-slate-800/80">
+          <table class="w-full text-left">
+            <thead class="text-slate-500 border-b border-slate-800 pb-1 sticky top-0 bg-black/90">
+              <tr>
+                <th class="py-1 px-1.5">TIME</th>
+                <th class="py-1 px-1.5">ID</th>
+                <th class="py-1 px-1.5">DLC</th>
+                <th class="py-1 px-1.5">DATA (HEX)</th>
+              </tr>
+            </thead>
+            <tbody id="canTableBody" class="divide-y divide-slate-900/60 text-slate-300">
+              <!-- CAN frames streamed here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="flex justify-between items-center text-[10px] font-mono text-slate-500">
+          <span>0x100: PowertrainTelemetry (50Hz)</span>
+          <span>0x200: VehicleDiagnostics (20Hz)</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ARCHITECTURE & PYTHON REPO DETAILS -->
+    <section class="rounded-2xl border border-cluster-border bg-cluster-card/60 p-6 backdrop-blur">
+      <h3 class="font-display font-bold text-base text-white mb-3">AUTOMOTIVE TELEMETRY ARCHITECTURE</h3>
+      <p class="text-sm text-slate-400 mb-4 leading-relaxed">
+        This digital cockpit is a web-based twin of the Python Software-in-the-Loop instrument cluster contained in this repository. 
+        It models real vehicle dynamics (<code class="text-cyan-400">ecu_core.py</code>), CAN 2.0B frame encoding and decoding using DBC definitions (<code class="text-cyan-400">automotive_network.dbc</code>), 
+        and high-framerate cockpit rendering (<code class="text-cyan-400">cockpit_display.py</code>).
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+        <div class="p-4 rounded-xl bg-black/40 border border-slate-800/80">
+          <div class="font-bold text-emerald-400 mb-1">ecu_core.py</div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Powertrain ECU node simulating 6-speed gear stepping, turbo spool dynamics, throttle response curves, and temperature models.
+          </p>
+        </div>
+        <div class="p-4 rounded-xl bg-black/40 border border-slate-800/80">
+          <div class="font-bold text-amber-400 mb-1">automotive_network.dbc</div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Standard CAN DBC specification defining 8-byte frames: ID 256 (<code class="text-slate-300">PowertrainTelemetry</code>) and ID 512 (<code class="text-slate-300">VehicleDiagnostics</code>).
+          </p>
+        </div>
+        <div class="p-4 rounded-xl bg-black/40 border border-slate-800/80">
+          <div class="font-bold text-cyan-400 mb-1">cockpit_display.py</div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            PyQt6 digital cluster canvas with QPainter drawing anti-aliased analog sweep dials, shift lights, and real-time DTC warning states.
+          </p>
+        </div>
+      </div>
     </section>
 
-    <!-- Features -->
-    <section id="features" class="py-16 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl font-bold text-center mb-12">Features</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <svg class="h-12 w-12 mx-auto text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.333 0-4 .667-4 2v4c0 1.333 2.667 2 4 2s4-.667 4-2v-4c0-1.333-2.667-2-4-2z"/></svg>
-                    <h3 class="text-xl font-semibold mt-4">Responsive Design</h3>
-                    <p class="mt-2 text-gray-600">Looks great on mobile, tablet and desktop.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <svg class="h-12 w-12 mx-auto text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m2 0a2 2 0 110 4H7a2 2 0 110-4h10z"/></svg>
-                    <h3 class="text-xl font-semibold mt-4">Fast Performance</h3>
-                    <p class="mt-2 text-gray-600">Zero‑JS bundle, pure CSS, lightning fast load.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <svg class="h-12 w-12 mx-auto text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    <h3 class="text-xl font-semibold mt-4">Easy Customization</h3>
-                    <p class="mt-2 text-gray-600">Tailwind utility classes let you tweak any detail.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+  </main>
 
-    <!-- Footer -->
-    <footer class="bg-white py-8 border-t">
-        <div class="max-w-7xl mx-auto text-center text-gray-600">
-            © 2026 MyProject. All rights reserved.
-        </div>
-    </footer>
+  <!-- FOOTER -->
+  <footer class="border-t border-cluster-border/60 py-5 text-center text-xs font-mono text-slate-500">
+    <div>Visteon SIL Cockpit &bull; Automotive CAN Network Cluster Demo &bull; 2026</div>
+    <div class="mt-1">Deployed via GitHub Actions Static HTML Workflow</div>
+  </footer>
+
+  <!-- SOUND SYNTHESIS & SCRIPT LOGIC -->
+  <script>
+    // --- STATE MANAGEMENT ---
+    const state = {
+      speedKmh: 0.0,
+      rpm: 800.0,
+      gear: 1,
+      turboBoostBar: 0.0,
+      throttlePos: 30.0,
+      coolantC: 88.0,
+      oilBar: 4.8,
+      fuelPct: 84.0,
+      driveMode: 'Eco', // Eco, Sport, Track
+      activeDtc: 0,
+      dtcText: '',
+      unit: 'km/h', // km/h or mph
+      autoDrive: true,
+      audioEnabled: false,
+      leftBlinker: false,
+      rightBlinker: false,
+      elapsedTime: 0.0,
+      canPaused: false,
+      odometerKm: 14820.4,
+      fps: 50
+    };
+
+    const DRIVE_MODE_THEMES = {
+      'Eco': {
+        color: '#39d98a',
+        glow: 'glow-eco',
+        shiftUpRpm: 5800,
+        shiftDownRpm: 1500,
+        maxRpm: 8500
+      },
+      'Sport': {
+        color: '#ffb547',
+        glow: 'glow-sport',
+        shiftUpRpm: 6800,
+        shiftDownRpm: 1800,
+        maxRpm: 9000
+      },
+      'Track': {
+        color: '#ff4d5a',
+        glow: 'glow-track',
+        shiftUpRpm: 7600,
+        shiftDownRpm: 2100,
+        maxRpm: 9000
+      }
+    };
+
+    const GEAR_RATIOS = [82.0, 54.0, 39.0, 30.0, 24.0, 20.0]; // RPM per km/h
+
+    // --- AUDIO SYNTHESIZER (Web Audio API) ---
+    let audioCtx = null;
+    let engineOsc = null;
+    let engineGain = null;
+    let blinkerTimer = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+
+        // Engine sound: low frequency sawtooth + lowpass filter
+        engineOsc = audioCtx.createOscillator();
+        engineOsc.type = 'sawtooth';
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(320, audioCtx.currentTime);
+
+        engineGain = audioCtx.createGain();
+        engineGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+
+        engineOsc.connect(filter);
+        filter.connect(engineGain);
+        engineGain.connect(audioCtx.destination);
+
+        engineOsc.start();
+      } catch (e) {
+        console.warn('Web Audio not supported or blocked:', e);
+      }
+    }
+
+    function updateAudio(rpm, throttle) {
+      if (!audioCtx || !state.audioEnabled) return;
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      // Map RPM 800 - 9000 to pitch 40Hz - 280Hz
+      const freq = 40 + (rpm / 9000) * 240;
+      engineOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
+
+      const targetGain = 0.02 + (throttle / 100) * 0.07;
+      engineGain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+    }
+
+    function playBlinkerClick() {
+      if (!audioCtx || !state.audioEnabled) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(950, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.035);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch(e) {}
+    }
+
+    // --- UI SETUP & GAUGE SCALES ---
+    function setupGaugeTicks() {
+      // Speed ticks (0 to 300)
+      const speedTicksEl = document.getElementById('speedTicks');
+      let speedTicksHtml = '';
+      for (let i = 0; i <= 10; i++) {
+        const speedVal = i * 30;
+        const angle = 135 + i * 27; // 270 deg total sweep
+        const rad = (angle * Math.PI) / 180;
+        const x1 = 150 + 106 * Math.cos(rad);
+        const y1 = 150 + 106 * Math.sin(rad);
+        const x2 = 150 + 116 * Math.cos(rad);
+        const y2 = 150 + 116 * Math.sin(rad);
+        const tx = 150 + 94 * Math.cos(rad);
+        const ty = 150 + 94 * Math.sin(rad) + 3;
+        speedTicksHtml += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#475569" stroke-width="1.8"/>`;
+        speedTicksHtml += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" fill="#94a3b8">${speedVal}</text>`;
+      }
+      speedTicksEl.innerHTML = speedTicksHtml;
+
+      // RPM ticks (0 to 9)
+      const rpmTicksEl = document.getElementById('rpmTicks');
+      let rpmTicksHtml = '';
+      for (let i = 0; i <= 9; i++) {
+        const angle = 135 + i * 30;
+        const rad = (angle * Math.PI) / 180;
+        const x1 = 150 + 106 * Math.cos(rad);
+        const y1 = 150 + 106 * Math.sin(rad);
+        const x2 = 150 + 116 * Math.cos(rad);
+        const y2 = 150 + 116 * Math.sin(rad);
+        const tx = 150 + 94 * Math.cos(rad);
+        const ty = 150 + 94 * Math.sin(rad) + 3;
+        const color = i >= 7 ? '#ef4444' : '#475569';
+        const txtColor = i >= 7 ? '#f87171' : '#94a3b8';
+        rpmTicksHtml += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${color}" stroke-width="2"/>`;
+        rpmTicksHtml += `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" fill="${txtColor}">${i}</text>`;
+      }
+      rpmTicksEl.innerHTML = rpmTicksHtml;
+
+      // 12 Shift Lights LEDs
+      const shiftLightsBar = document.getElementById('shiftLightsBar');
+      let shiftHtml = '';
+      for (let i = 0; i < 12; i++) {
+        shiftHtml += `<div id="shiftLed_${i}" class="w-3.5 sm:w-4 h-2.5 rounded-sm bg-slate-900 border border-slate-800 transition-all duration-75"></div>`;
+      }
+      shiftLightsBar.innerHTML = shiftHtml;
+    }
+
+    // --- DRIVE MODE HANDLER ---
+    window.setDriveMode = function(mode) {
+      state.driveMode = mode;
+      const theme = DRIVE_MODE_THEMES[mode];
+
+      // Update Buttons
+      ['Eco', 'Sport', 'Track'].forEach(m => {
+        const btn = document.getElementById(`modeBtn${m}`);
+        if (m === mode) {
+          btn.className = `px-3.5 py-1 rounded-lg text-xs font-display font-bold transition-all text-black shadow-md ${
+            m === 'Eco' ? 'bg-emerald-500' : m === 'Sport' ? 'bg-amber-500' : 'bg-rose-500'
+          }`;
+        } else {
+          btn.className = 'px-3.5 py-1 rounded-lg text-xs font-display font-bold transition-all text-slate-400 hover:text-white';
+        }
+      });
+
+      // Update cluster container glow
+      const container = document.getElementById('clusterContainer');
+      container.classList.remove('glow-eco', 'glow-sport', 'glow-track');
+      container.classList.add(theme.glow);
+
+      // Update needles and arcs
+      document.getElementById('speedArc').setAttribute('stroke', theme.color);
+      document.getElementById('speedNeedleHub').setAttribute('fill', theme.color);
+      document.getElementById('rpmArc').setAttribute('stroke', theme.color);
+      document.getElementById('rpmNeedleHub').setAttribute('fill', theme.color);
+      document.getElementById('gearDisplay').style.color = theme.color;
+    };
+
+    // --- FAULT INJECTION ---
+    window.injectFault = function(type) {
+      const banner = document.getElementById('dtcAlertBanner');
+      const desc = document.getElementById('dtcDescription');
+      const ttEngine = document.getElementById('ttEngine');
+      const ttOil = document.getElementById('ttOil');
+
+      if (type === 'overheat') {
+        state.coolantC = 112.0;
+        state.activeDtc = 1;
+        state.dtcText = 'P0117: Engine Coolant Temp Overheat (112°C)';
+        banner.classList.remove('hidden');
+        desc.innerText = state.dtcText;
+        ttEngine.classList.add('telltale-active', 'text-amber-500');
+      } else if (type === 'oil') {
+        state.oilBar = 0.4;
+        state.activeDtc = 1;
+        state.dtcText = 'P0524: Engine Oil Pressure Dangerously Low';
+        banner.classList.remove('hidden');
+        desc.innerText = state.dtcText;
+        ttOil.classList.add('telltale-active', 'text-rose-500');
+      } else if (type === 'boost') {
+        state.turboBoostBar = 0.0;
+        state.activeDtc = 1;
+        state.dtcText = 'P0299: Turbocharger Underboost Condition';
+        banner.classList.remove('hidden');
+        desc.innerText = state.dtcText;
+        ttEngine.classList.add('telltale-active', 'text-amber-500');
+      } else if (type === 'clear') {
+        state.coolantC = 88.0;
+        state.oilBar = 4.8;
+        state.activeDtc = 0;
+        state.dtcText = '';
+        banner.classList.add('hidden');
+        ttEngine.classList.remove('telltale-active', 'text-amber-500');
+        ttOil.classList.remove('telltale-active', 'text-rose-500');
+      }
+    };
+
+    // --- VEHICLE DYNAMICS SIMULATION STEP ---
+    function simulateStep(dt) {
+      state.elapsedTime += dt;
+      const theme = DRIVE_MODE_THEMES[state.driveMode];
+
+      if (state.autoDrive) {
+        // Natural cycling throttle wave from Python ecu_core.py
+        const wave = 35 + 28 * Math.sin(state.elapsedTime * 0.35) + 12 * Math.sin(state.elapsedTime * 0.12);
+        state.throttlePos = Math.max(5, Math.min(100, wave));
+        document.getElementById('throttleSlider').value = state.throttlePos;
+        document.getElementById('sliderThrottleLabel').innerText = `${state.throttlePos.toFixed(0)}%`;
+      }
+
+      const throttleFrac = state.throttlePos / 100.0;
+
+      // Dynamic Turbo Boost: up to 2.2 bar under load
+      const targetBoost = throttleFrac * 2.2;
+      state.turboBoostBar += (targetBoost - state.turboBoostBar) * (dt * 4.0);
+
+      // Speed & RPM transmission logic
+      const targetSpeed = throttleFrac * (state.driveMode === 'Track' ? 295.0 : 250.0);
+      const accelRate = (throttleFrac * 18.0) * (1.0 - state.speedKmh / 320.0);
+      state.speedKmh += accelRate * dt;
+      if (throttleFrac < 0.15) {
+        state.speedKmh = Math.max(0, state.speedKmh - 12.0 * dt);
+      }
+
+      // Transmission automatic gear shift logic
+      const ratio = GEAR_RATIOS[state.gear - 1];
+      let calcRpm = Math.max(800.0, state.speedKmh * ratio);
+
+      if (state.autoDrive) {
+        if (calcRpm > theme.shiftUpRpm && state.gear < 6) {
+          state.gear++;
+        } else if (calcRpm < theme.shiftDownRpm && state.gear > 1) {
+          state.gear--;
+        }
+      }
+
+      state.rpm = Math.max(800.0, Math.min(theme.maxRpm, state.speedKmh * GEAR_RATIOS[state.gear - 1]));
+
+      // Coolant & Oil mild fluctuation
+      if (state.activeDtc === 0) {
+        state.coolantC = 88.0 + (state.rpm / 9000.0) * 8.0;
+        state.oilBar = 2.0 + (state.rpm / 9000.0) * 4.0;
+      }
+
+      // Odometer progression
+      state.odometerKm += (state.speedKmh / 3600.0) * dt;
+
+      // Audio pitch update
+      updateAudio(state.rpm, state.throttlePos);
+    }
+
+    // --- UI RENDER LOOP ---
+    function render() {
+      // 1. Speedometer
+      const displaySpeed = state.unit === 'mph' ? state.speedKmh * 0.621371 : state.speedKmh;
+      document.getElementById('speedValueDisplay').innerText = Math.round(displaySpeed);
+      document.getElementById('speedUnitDisplay').innerText = state.unit.toUpperCase();
+
+      const speedRatio = Math.min(state.speedKmh / 300.0, 1.0);
+      const speedAngle = -135 + speedRatio * 270;
+      document.getElementById('speedNeedle').style.transform = `rotate(${speedAngle}deg)`;
+
+      // Dasharray offset for 270 deg arc
+      const speedCircumference = 565.48;
+      const speedActiveArc = speedCircumference * 0.75;
+      const speedOffset = speedCircumference - (speedRatio * speedActiveArc);
+      document.getElementById('speedArc').style.strokeDashoffset = speedOffset;
+
+      // 2. Tachometer
+      document.getElementById('rpmValueDisplay').innerText = Math.round(state.rpm);
+      const rpmRatio = Math.min(state.rpm / 9000.0, 1.0);
+      const rpmAngle = -135 + rpmRatio * 270;
+      document.getElementById('rpmNeedle').style.transform = `rotate(${rpmAngle}deg)`;
+
+      const rpmOffset = speedCircumference - (rpmRatio * speedActiveArc);
+      document.getElementById('rpmArc').style.strokeDashoffset = rpmOffset;
+
+      // 3. Shift Lights Bar (12 segments)
+      const activeLeds = Math.min(12, Math.floor(rpmRatio * 13));
+      const isRedline = state.rpm > 7800;
+
+      for (let i = 0; i < 12; i++) {
+        const led = document.getElementById(`shiftLed_${i}`);
+        if (!led) continue;
+
+        if (isRedline) {
+          led.className = 'w-3.5 sm:w-4 h-2.5 rounded-sm bg-rose-600 border border-rose-400 redline-blink shadow-[0_0_8px_#ff2233]';
+        } else if (i < activeLeds) {
+          if (i < 5) {
+            led.className = 'w-3.5 sm:w-4 h-2.5 rounded-sm bg-emerald-500 border border-emerald-400 shadow-[0_0_6px_#10b981]';
+          } else if (i < 9) {
+            led.className = 'w-3.5 sm:w-4 h-2.5 rounded-sm bg-amber-500 border border-amber-400 shadow-[0_0_6px_#f59e0b]';
+          } else {
+            led.className = 'w-3.5 sm:w-4 h-2.5 rounded-sm bg-rose-500 border border-rose-400 shadow-[0_0_6px_#f43f5e]';
+          }
+        } else {
+          led.className = 'w-3.5 sm:w-4 h-2.5 rounded-sm bg-slate-900 border border-slate-800';
+        }
+      }
+
+      // 4. Gear Box
+      document.getElementById('gearDisplay').innerText = state.gear;
+
+      // 5. Turbo Boost
+      document.getElementById('boostValueDisplay').innerText = `${state.turboBoostBar.toFixed(2)} bar`;
+      const boostPct = Math.min(100, Math.max(0, (state.turboBoostBar / 3.0) * 100));
+      document.getElementById('boostBarFill').style.width = `${boostPct}%`;
+
+      // 6. Fluid & Telemetry values
+      document.getElementById('throttleDisplay').innerText = `${state.throttlePos.toFixed(1)}%`;
+      document.getElementById('coolantValueDisplay').innerText = Math.round(state.coolantC);
+      document.getElementById('coolantBar').style.width = `${Math.min(100, (state.coolantC / 130) * 100)}%`;
+      if (state.coolantC > 104) {
+        document.getElementById('coolantBar').className = 'h-full bg-rose-500 animate-pulse';
+      } else {
+        document.getElementById('coolantBar').className = 'h-full bg-emerald-500';
+      }
+
+      document.getElementById('oilValueDisplay').innerText = state.oilBar.toFixed(1);
+      document.getElementById('oilBar').style.width = `${Math.min(100, (state.oilBar / 8.0) * 100)}%`;
+
+      document.getElementById('fuelValueDisplay').innerText = Math.round(state.fuelPct);
+      document.getElementById('fuelBar').style.width = `${state.fuelPct}%`;
+
+      document.getElementById('odometerDisplay').innerText = `${state.odometerKm.toFixed(1)} km`;
+    }
+
+    // --- CAN BUS PACKET STREAM (0x100 Powertrain, 0x200 Diagnostics) ---
+    let canStreamTimer = null;
+    function startCanStreaming() {
+      const tableBody = document.getElementById('canTableBody');
+      let msgCount = 0;
+
+      setInterval(() => {
+        if (state.canPaused) return;
+        msgCount++;
+
+        // Alternating frames: 0x100 (50Hz) and 0x200 (20Hz)
+        const isTelemetry = msgCount % 2 === 0;
+        const now = new Date();
+        const timeStr = `${now.toTimeString().split(' ')[0]}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+
+        let canId = '';
+        let hexBytes = '';
+
+        if (isTelemetry) {
+          canId = '0x100'; // 256
+          // Encode speed (16b), rpm (16b), gear (4b), boost (12b), throttle (8b)
+          const spdRaw = Math.min(65535, Math.floor(state.speedKmh * 10));
+          const rpmRaw = Math.min(65535, Math.floor(state.rpm));
+          const b0 = (spdRaw & 0xFF).toString(16).padStart(2, '0').toUpperCase();
+          const b1 = ((spdRaw >> 8) & 0xFF).toString(16).padStart(2, '0').toUpperCase();
+          const b2 = (rpmRaw & 0xFF).toString(16).padStart(2, '0').toUpperCase();
+          const b3 = ((rpmRaw >> 8) & 0xFF).toString(16).padStart(2, '0').toUpperCase();
+          const b4 = (state.gear & 0x0F).toString(16).padStart(2, '0').toUpperCase();
+          const b5 = Math.floor(state.turboBoostBar * 100).toString(16).padStart(2, '0').toUpperCase();
+          const b6 = Math.floor(state.throttlePos).toString(16).padStart(2, '0').toUpperCase();
+          const b7 = '00';
+          hexBytes = `${b0} ${b1} ${b2} ${b3} ${b4} ${b5} ${b6} ${b7}`;
+        } else {
+          canId = '0x200'; // 512
+          const coolRaw = Math.floor(state.coolantC + 40).toString(16).padStart(2, '0').toUpperCase();
+          const oilRaw = Math.floor(state.oilBar * 100).toString(16).padStart(2, '0').toUpperCase();
+          const fuelRaw = Math.floor(state.fuelPct).toString(16).padStart(2, '0').toUpperCase();
+          const dtcRaw = state.activeDtc === 1 ? '01' : '00';
+          const modeRaw = state.driveMode === 'Eco' ? '00' : state.driveMode === 'Sport' ? '01' : '02';
+          hexBytes = `${coolRaw} ${oilRaw} ${fuelRaw} ${dtcRaw} ${modeRaw} 00 00 00`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = isTelemetry ? 'hover:bg-slate-900/60' : 'hover:bg-slate-900/60 text-amber-300/90';
+        tr.innerHTML = `
+          <td class="py-0.5 px-1.5 text-slate-500">${timeStr}</td>
+          <td class="py-0.5 px-1.5 font-bold ${isTelemetry ? 'text-cyan-400' : 'text-amber-400'}">${canId}</td>
+          <td class="py-0.5 px-1.5 text-slate-500">8</td>
+          <td class="py-0.5 px-1.5 font-mono">${hexBytes}</td>
+        `;
+
+        tableBody.insertBefore(tr, tableBody.firstChild);
+        if (tableBody.children.length > 28) {
+          tableBody.removeChild(tableBody.lastChild);
+        }
+      }, 70);
+    }
+
+    // --- EVENT LISTENERS ---
+    document.addEventListener('DOMContentLoaded', () => {
+      setupGaugeTicks();
+      setDriveMode('Eco');
+      startCanStreaming();
+
+      // Audio Toggle
+      const btnAudio = document.getElementById('btnAudioToggle');
+      btnAudio.addEventListener('click', () => {
+        state.audioEnabled = !state.audioEnabled;
+        initAudio();
+        document.getElementById('audioIcon').innerText = state.audioEnabled ? '🔊' : '🔇';
+        document.getElementById('audioLabel').innerText = `Sound: ${state.audioEnabled ? 'ON' : 'OFF'}`;
+        btnAudio.className = state.audioEnabled 
+          ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/50 bg-emerald-500/20 text-emerald-300 text-xs font-mono font-semibold'
+          : 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cluster-border bg-cluster-card hover:bg-slate-800 transition text-xs font-mono text-slate-300';
+      });
+
+      // Unit Toggle
+      document.getElementById('btnUnitToggle').addEventListener('click', () => {
+        state.unit = state.unit === 'km/h' ? 'mph' : 'km/h';
+        document.getElementById('unitLabel').innerText = state.unit.toUpperCase();
+      });
+
+      // Auto Drive Toggle
+      const btnAuto = document.getElementById('btnAutoDrive');
+      btnAuto.addEventListener('click', () => {
+        state.autoDrive = !state.autoDrive;
+        document.getElementById('autoDriveStatus').innerText = state.autoDrive ? 'ON' : 'OFF';
+        btnAuto.className = state.autoDrive
+          ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 transition text-xs font-mono font-semibold'
+          : 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-400 transition text-xs font-mono font-semibold';
+      });
+
+      // Throttle slider
+      const slider = document.getElementById('throttleSlider');
+      slider.addEventListener('input', (e) => {
+        state.autoDrive = false;
+        document.getElementById('autoDriveStatus').innerText = 'OFF';
+        state.throttlePos = parseFloat(e.target.value);
+        document.getElementById('sliderThrottleLabel').innerText = `${state.throttlePos.toFixed(0)}%`;
+      });
+
+      // WOT Button
+      document.getElementById('btnWOT').addEventListener('mousedown', () => {
+        state.autoDrive = false;
+        document.getElementById('autoDriveStatus').innerText = 'OFF';
+        state.throttlePos = 100.0;
+        slider.value = 100;
+        document.getElementById('sliderThrottleLabel').innerText = '100%';
+      });
+
+      // Brake Button
+      document.getElementById('btnBrake').addEventListener('mousedown', () => {
+        state.autoDrive = false;
+        state.throttlePos = 0.0;
+        slider.value = 0;
+        document.getElementById('sliderThrottleLabel').innerText = '0%';
+        state.speedKmh = Math.max(0, state.speedKmh - 35.0);
+      });
+
+      // Gear buttons
+      document.getElementById('btnUpshift').addEventListener('click', () => {
+        if (state.gear < 6) state.gear++;
+      });
+      document.getElementById('btnDownshift').addEventListener('click', () => {
+        if (state.gear > 1) state.gear--;
+      });
+
+      // Blinker Buttons
+      function toggleBlinker(side) {
+        if (side === 'left') {
+          state.leftBlinker = !state.leftBlinker;
+          state.rightBlinker = false;
+        } else {
+          state.rightBlinker = !state.rightBlinker;
+          state.leftBlinker = false;
+        }
+        clearInterval(blinkerTimer);
+        const iconL = document.getElementById('iconLeftBlinker');
+        const iconR = document.getElementById('iconRightBlinker');
+        iconL.classList.remove('text-emerald-400', 'drop-shadow-[0_0_8px_#34d399]');
+        iconR.classList.remove('text-emerald-400', 'drop-shadow-[0_0_8px_#34d399]');
+
+        if (state.leftBlinker || state.rightBlinker) {
+          let on = false;
+          blinkerTimer = setInterval(() => {
+            on = !on;
+            if (on) playBlinkerClick();
+            if (state.leftBlinker) {
+              iconL.classList.toggle('text-emerald-400', on);
+              iconL.classList.toggle('drop-shadow-[0_0_8px_#34d399]', on);
+            }
+            if (state.rightBlinker) {
+              iconR.classList.toggle('text-emerald-400', on);
+              iconR.classList.toggle('drop-shadow-[0_0_8px_#34d399]', on);
+            }
+          }, 360);
+        }
+      }
+      document.getElementById('btnLeftBlinker').addEventListener('click', () => toggleBlinker('left'));
+      document.getElementById('btnRightBlinker').addEventListener('click', () => toggleBlinker('right'));
+
+      // Keyboard Controls
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          state.autoDrive = false;
+          state.throttlePos = Math.min(100, state.throttlePos + 15);
+          slider.value = state.throttlePos;
+          document.getElementById('sliderThrottleLabel').innerText = `${state.throttlePos.toFixed(0)}%`;
+        } else if (e.code === 'KeyB') {
+          state.speedKmh = Math.max(0, state.speedKmh - 15.0);
+        } else if (e.code === 'KeyE') {
+          if (state.gear < 6) state.gear++;
+        } else if (e.code === 'KeyQ') {
+          if (state.gear > 1) state.gear--;
+        } else if (e.code === 'KeyA') {
+          toggleBlinker('left');
+        } else if (e.code === 'KeyD') {
+          toggleBlinker('right');
+        }
+      });
+
+      // CAN pause / clear
+      document.getElementById('btnPauseCan').addEventListener('click', function() {
+        state.canPaused = !state.canPaused;
+        this.innerText = state.canPaused ? 'Resume' : 'Pause';
+      });
+      document.getElementById('btnClearCan').addEventListener('click', () => {
+        document.getElementById('canTableBody').innerHTML = '';
+      });
+
+      // MAIN SIMULATION & RENDER ANIMATION LOOP (60 FPS)
+      let lastTime = performance.now();
+      function mainLoop(time) {
+        const dt = Math.min((time - lastTime) / 1000.0, 0.1);
+        lastTime = time;
+        simulateStep(dt);
+        render();
+        requestAnimationFrame(mainLoop);
+      }
+      requestAnimationFrame(mainLoop);
+    });
+  </script>
 </body>
 </html>

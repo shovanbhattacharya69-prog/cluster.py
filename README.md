@@ -1,79 +1,101 @@
-# Premium Front‑end Demo
+# Visteon Software-in-the-Loop Cockpit – CAN Telemetry Cluster
 
-[![GitHub Actions CI](https://github.com/your-username/your-repo/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/your-username/your-repo/actions/workflows/gh-pages.yml)
+[![Deploy static content to Pages](https://github.com/shovanbhattacharya69-prog/cluster.py/actions/workflows/static.yml/badge.svg)](https://github.com/shovanbhattacharya69-prog/cluster.py/actions/workflows/static.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](pyproject.toml)
+[![Pages Status](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen)](https://shovanbhattacharya69-prog.github.io/cluster.py/)
 
-This repository provides a **professional‑grade, responsive frontend** built with **Tailwind CSS** and a **GitHub Actions** workflow that automatically publishes the site to **GitHub Pages**.
-
----
-
-## 📖 Live Demo
-After the CI runs, the site will be available at:
-
-```
-https://<YOUR_GITHUB_USERNAME>.github.io/<REPOSITORY_NAME>/
-```
-
-Replace `<YOUR_GITHUB_USERNAME>` and `<REPOSITORY_NAME>` with your actual GitHub user name and repository name.
+A professional-grade **Automotive Digital Instrument Cockpit Cluster** and **CAN Bus Telemetry Simulator** built with Python (PyQt6 / python-can / cantools) and demonstrated online via an ultra-premium, interactive HTML5/Tailwind/WebAudio instrument cluster.
 
 ---
 
-## 🗂️ Project Structure
+## 🏎️ Live Interactive Demo
+
+Open the live demonstration in your browser:
+
+👉 **[https://shovanbhattacharya69-prog.github.io/cluster.py/](https://shovanbhattacharya69-prog.github.io/cluster.py/)**
+
+### Interactive Web Features:
+* **Anti-Aliased Digital Gauges**: Real-time Speedometer (0–300 km/h or mph) & Tachometer (0–9000 RPM) with smooth sweep physics and redline warnings.
+* **12-Segment Sequential Shift Lights**: F1-style LED tachometer indicator (Green ➔ Amber ➔ Red ➔ Crimson flash at limiter).
+* **6-Speed Transmission & Boost Gauge**: Gear indicator and dynamic turbo boost (-1.0 to 3.0 bar).
+* **Drive Modes**: Switch between **Eco** (emerald), **Sport** (amber), and **Track** (racing crimson) with distinct dynamic calibration curves.
+* **Live CAN 2.0B Sniffer**: Real-time streaming hex frame monitor showing CAN ID `0x100` (`PowertrainTelemetry` at 50 Hz) and `0x200` (`VehicleDiagnostics` at 20 Hz).
+* **DTC Fault Injection Matrix**: Test MIL check engine triggers, overheat alerts (P0117), oil pressure warnings, and clear fault codes with one click.
+* **Interactive Controls & WebAudio**: Use your keyboard (`[Space]` Throttle, `[B]` Brake, `[Q]`/`[E]` Paddle shifters, `[A]`/`[D]` Turn signals) or on-screen pedals with realistic synthesized engine sound.
+
+---
+
+## 🗂️ Project Architecture
 
 ```
-.
-├─ frontend/
-│  └─ index.html        # Premium HTML page (Tailwind CSS CDN)
-├─ .github/
-│  └─ workflows/
-│     └─ gh-pages.yml   # GitHub Actions workflow for deployment
-├─ .gitignore            # Recommended ignore patterns
-└─ README.md            # This document
+cluster.py/
+├── index.html                   # High-performance web twin of the digital cockpit (Root for Pages)
+├── frontend/
+│   └── index.html               # Frontend mirror for static distribution
+├── .github/
+│   └── workflows/
+│       ├── static.yml           # Official GitHub Actions Static HTML Pages deployment
+│       └── ci.yml               # Automated test suite and linting CI
+├── automotive_network.dbc       # Standard CAN network database (IDs 256 & 512)
+├── ecu_core.py                  # Powertrain & diagnostics ECU physics simulation node
+├── can_bus.py                   # Virtual CAN (SocketCAN / virtual interface) bus layer
+├── cockpit_display.py           # PyQt6 native desktop instrument cluster GUI
+├── run.py                       # Single-command launcher for ECU + Cockpit
+├── test_cluster.py              # Pytest test suite for telemetry and DBC integrity
+├── requirements.txt             # Python dependencies
+└── pyproject.toml               # Build configuration
 ```
 
 ---
 
-## 🚀 Setup & Deployment
+## 📡 CAN Network Specification (`automotive_network.dbc`)
 
-1. **Create a repository** on GitHub (public or private).
-2. **Clone** it locally:
+| Frame ID | Name | Cycle | Signals | Description |
+|---|---|---|---|---|
+| **0x100** (256) | `PowertrainTelemetry` | 20 ms (50 Hz) | `VehicleSpeed`, `EngineRPM`, `CurrentGear`, `TurboBoostBar`, `ThrottlePosition` | High-frequency powertrain state telemetry |
+| **0x200** (512) | `VehicleDiagnostics` | 50 ms (20 Hz) | `CoolantTemperature`, `EngineOilPressure`, `FuelTankLevel`, `ActiveDTCAlert`, `DriveModeSelect` | Diagnostics & thermal status; triggers P0117 DTC on overheat |
+
+---
+
+## 💻 Running Desktop App Locally
+
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/<YOUR_GITHUB_USERNAME>/<REPOSITORY_NAME>.git
-   cd <REPOSITORY_NAME>
+   git clone https://github.com/shovanbhattacharya69-prog/cluster.py.git
+   cd cluster.py
    ```
-3. **Copy** the `frontend/` folder and the `.github/` workflow from this template into the repo (maintain the directory layout).
-4. **Commit & push**:
+
+2. **Install dependencies**:
    ```bash
-   git add .
-   git commit -m "Add premium frontend and CI workflow"
-   git push origin main
+   pip install -r requirements.txt
    ```
-5. **Enable GitHub Pages** (if not auto‑enabled):
-   - Go to *Settings → Pages*.
-   - Set **Source** to **Deploy from a branch** → `gh-pages` → `/ (root)`.
-   - Save.
-6. Monitor the **Actions** tab – the workflow *Deploy to GitHub Pages* will run and publish the site.
+
+3. **Launch the simulator**:
+   ```bash
+   # Run both ECU core and Cockpit Display together:
+   python run.py --mode Sport
+   ```
+
+4. **Run tests**:
+   ```bash
+   pytest test_cluster.py -v
+   ```
 
 ---
 
-## 🎨 Customisation
-- **Content** – Edit `frontend/index.html` to change text, images, or layout.
-- **Styling** – Tailwind utility classes are applied via the CDN. For a custom Tailwind build, replace the CDN link with a locally compiled CSS file and adjust the workflow to run `npm install && npm run build` before deployment.
-- **Additional pages** – Add more HTML files under `frontend/` and link to them from the navigation bar.
+## ⚙️ How GitHub Pages Deployment Works
 
----
-
-## 🛡️ Polishing & Professional Touches
-- **Badge** – The CI status badge at the top shows the latest workflow run.
-- **License** – A `LICENSE` file (MIT) is included for open‑source use.
-- **.gitignore** – Prevents committing unnecessary files.
-- **Permissions** – Workflow explicitly requests `contents: write` and `pages: write` for reliable deployment.
+This repository uses GitHub's official **Static HTML GitHub Actions workflow** (`.github/workflows/static.yml`):
+* **Trigger**: Every push to `main` or manual trigger via `workflow_dispatch`.
+* **Path**: Deploys root `index.html` directly to GitHub Pages with zero external build step needed.
+* **To enable in GitHub Settings**:
+  1. Open repository **Settings** ➔ **Pages**.
+  2. Under **Build and deployment** ➔ **Source**, select **GitHub Actions**.
+  3. The `static.yml` workflow will automatically run and publish the site.
 
 ---
 
 ## 📄 License
 
-MIT License – see the `LICENSE` file.
-
----
-
-© 2026 MyProject. All rights reserved.
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
