@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,7 +21,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./frontend
-          # optional: keep history of pages
           keep_files: false
-          # ensure the site is built (none needed for pure HTML)
-          # If you later add a build step, insert before this action.
